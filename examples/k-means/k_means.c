@@ -4,10 +4,6 @@
 #include <float.h>
 #include "k_means.h"
 
-double distance(int x, int y, int x2, int y2) {
-  return pow(x - x2, 2.) + pow(y - y2, 2.);
-}
-
 void print_point(Point* point) {
   Point p = *point;
   printf("Point: (%d,%d)\n", p.x, p.y);
@@ -20,8 +16,8 @@ void print_cluster(Cluster* cluster) {
 
 // Runs single iteration of k-means
 void k_means_it(int point_count, int mean_count, Point* points, Cluster* means) {
-  int i = 0, j = 0, cluster_idx = 0;
   double d, smallest;
+  int i = 0, j = 0, cluster_idx = 0, dx, dy;
 
   // Initialize clusters
   for (i=0; i < mean_count; i++) {
@@ -35,7 +31,10 @@ void k_means_it(int point_count, int mean_count, Point* points, Cluster* means) 
     cluster_idx = 0;
     smallest = FLT_MAX;
     for (j=0; j < mean_count; j++) {
-      d = distance(points[i].x, points[i].y, means[j].x, means[j].y);
+      dx = points[i].x - means[j].x;
+      dy = points[i].y - means[j].y;
+      d = dx * dx + dy * dy;
+
       if (d < smallest) {
         smallest = d;
         cluster_idx = j;
