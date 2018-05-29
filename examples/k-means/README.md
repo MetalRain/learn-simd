@@ -12,14 +12,15 @@ gcc -c -o k_means.o k_means.c -march=native
 gcc -o k-means main.o dataset.o k_means.o -march=native
 
 $ ./k-means
-Result 0 - SIMD: 0.249464 NORMAL: 0.154102
-Result 1 - SIMD: 0.250891 NORMAL: 0.153315
-Result 2 - SIMD: 0.250936 NORMAL: 0.155818
-Result 3 - SIMD: 0.248642 NORMAL: 0.154685
-Result 4 - SIMD: 0.253430 NORMAL: 0.154275
-Result 5 - SIMD: 0.250122 NORMAL: 0.154283
-Result 6 - SIMD: 0.249316 NORMAL: 0.154116
-Result 7 - SIMD: 0.249558 NORMAL: 0.153039
-Result 8 - SIMD: 0.253940 NORMAL: 0.154188
-Result 9 - SIMD: 0.252191 NORMAL: 0.154250
+Running both implementations 10 times, please wait..
+Time to cluster 1000000 points, run 0 | SIMD: 0.735190s | NORMAL: 0.796717s
+Time to cluster 1000000 points, run 1 | SIMD: 0.755416s | NORMAL: 0.793284s
+Time to cluster 1000000 points, run 2 | SIMD: 0.746245s | NORMAL: 0.799630s
+Time to cluster 1000000 points, run 3 | SIMD: 0.748949s | NORMAL: 0.988517s
+Time to cluster 1000000 points, run 4 | SIMD: 0.734046s | NORMAL: 0.944742s
+Time to cluster 1000000 points, run 5 | SIMD: 0.747311s | NORMAL: 0.792709s
+Time to cluster 1000000 points, run 6 | SIMD: 0.730126s | NORMAL: 0.791240s
+Time to cluster 1000000 points, run 7 | SIMD: 0.733360s | NORMAL: 0.788729s
+Time to cluster 1000000 points, run 8 | SIMD: 0.735455s | NORMAL: 0.787744s
+Time to cluster 1000000 points, run 9 | SIMD: 0.757140s | NORMAL: 0.786902s
 ```
