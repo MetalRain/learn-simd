@@ -68,9 +68,7 @@ bool k_means_it(int point_count, int mean_count, Point* points, Cluster* means) 
   return changed;
 }
 
-void k_means(int point_count, int mean_count, Point* points, Cluster* means) {
-  printf("Clustering %d points to %d clusters\n", point_count, mean_count);
-
+short k_means(int point_count, int mean_count, Point* points, Cluster* means) {
   short iterations = 0;
 
   // Loop until no change or max iterations has been reached
@@ -78,7 +76,9 @@ void k_means(int point_count, int mean_count, Point* points, Cluster* means) {
     iterations++;
     bool changed = k_means_it(point_count, mean_count, points, means);
     if (!changed || iterations >= MAX_ITERATIONS){
-      break;
+      return iterations;
     }
   }
+
+  return iterations;
 }

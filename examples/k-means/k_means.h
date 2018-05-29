@@ -15,4 +15,4 @@ void print_point(Point* point);
 
 void print_cluster(Cluster* cluster);
 
-void k_means(int point_count, int mean_count, Point* points, Cluster* means);
+short k_means(int point_count, int mean_count, Point* points, Cluster* means);
