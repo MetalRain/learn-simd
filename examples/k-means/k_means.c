@@ -99,8 +99,8 @@ bool k_means_simd_it(int point_count, int mean_count, Point* points, Cluster* me
   // Initialize clusters
   for (i=0; i < mean_count; i++) {
     means[i].cardinality = 0;
-    means[i].cum_x = 0.;
-    means[i].cum_y = 0.;
+    means[i].cum_x = 0;
+    means[i].cum_y = 0;
   }
 
   // Find cluster for group of points

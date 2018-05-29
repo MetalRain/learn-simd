@@ -1,55 +1,60 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
+#include <string.h>
 #include "dataset.h"
 
 int main() {
   int cluster_count = 4, point_count = 1000000;
-  short iterations;
   clock_t start, diff;
-  double calculations, seconds, perPointNano;
+  double seconds;
 
   srand(0);
 
   Cluster* clusters = malloc(cluster_count * sizeof(Cluster));
+  Cluster* dirty_clusters = malloc(cluster_count * sizeof(Cluster));
   Point* points = malloc(point_count * sizeof(Point));
 
   gen_points(point_count, cluster_count, points, clusters);
 
-  printf("Running without SIMD\n");
+  // k-means changes clusters, store initial values here
+  memcpy(dirty_clusters, clusters, cluster_count * sizeof(Cluster));
 
-  start = clock();
-  iterations = k_means(point_count, cluster_count, points, clusters);
-  diff = clock() - start;
+  const int executions = 10;
+  double results[executions];
+  double simd_results[executions];
 
-  calculations = iterations * cluster_count * point_count;
-  seconds = (diff * 1000. / CLOCKS_PER_SEC) / 1000.;
-  perPointNano = (diff * 1000000000. / CLOCKS_PER_SEC) / calculations;
+  printf("Running both implementations 10 times, please wait..\n");
 
-  printf("Finished in %d iterations\n Took %gs\n Per point %fns\n", iterations, seconds, perPointNano);
+  for(int i=0; i < executions; i++) {
 
-  // Print results
-  for (int i=0; i < cluster_count; i++) {
-    print_cluster(&clusters[i]);
+    // Re-initialize clusters
+    memcpy(clusters, dirty_clusters, cluster_count * sizeof(Cluster));
+
+    start = clock();
+    k_means_simd(point_count, cluster_count, points, clusters);
+    diff = clock() - start;
+    seconds = (diff * 1000. / CLOCKS_PER_SEC) / 1000.;
+    simd_results[i] = seconds;
   }
 
-  printf("\nRunning with SIMD\n");
+  for(int i=0; i < executions; i++) {
 
-  start = clock();
-  iterations = k_means_simd(point_count, cluster_count, points, clusters);
-  diff = clock() - start;
+    // Re-initialize clusters
+    memcpy(clusters, dirty_clusters, cluster_count * sizeof(Cluster));
 
-  calculations = iterations * cluster_count * point_count;
-  seconds = (diff * 1000. / CLOCKS_PER_SEC) / 1000.;
-  perPointNano = (diff * 1000000000. / CLOCKS_PER_SEC) / calculations;
-
-  printf("Finished in %d iterations\n Took %gs\n Per point %fns\n", iterations, seconds, perPointNano);
-
-  // Print results
-  for (int i=0; i < cluster_count; i++) {
-    print_cluster(&clusters[i]);
+    start = clock();
+    k_means(point_count, cluster_count, points, clusters);
+    diff = clock() - start;
+    seconds = (diff * 1000. / CLOCKS_PER_SEC) / 1000.;
+    results[i] = seconds;
   }
 
+  for(int i=0; i < executions; i++) {
+    printf("Time to cluster %d points, run %d | SIMD: %fs | NORMAL: %fs\n", point_count, i, simd_results[i], results[i]);
+  }
+
+  free(dirty_clusters);
   free(clusters);
   free(points);
 
