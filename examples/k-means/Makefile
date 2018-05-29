@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS='-lm'
+CFLAGS=-msse -msse2 -msse3 -mavx -m64
 DEPS = dataset.h k_means.h
 
 %.o: %.c $(DEPS)

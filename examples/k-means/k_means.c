@@ -1,26 +1,28 @@
 #include <stdio.h>
 #include <string.h>
-#include <math.h>
 #include <float.h>
 #include <stdbool.h>
+#include <immintrin.h>
 #include "k_means.h"
 
 #define MAX_ITERATIONS 100
+#define EPSILON 1e-3
 
 void print_point(Point* point) {
   Point p = *point;
-  printf("Point: (%d,%d)\n", p.x, p.y);
+  printf("Point: (%g,%g)\n", p.x, p.y);
 }
 
 void print_cluster(Cluster* cluster) {
   Cluster c = *cluster;
-  printf("Cluster: (%d,%d) size: %d\n", c.x, c.y, c.cardinality);
+  printf("Cluster: (%g,%g) size: %d\n", c.x, c.y, c.cardinality);
 }
 
 // Runs single iteration of k-means
 bool k_means_it(int point_count, int mean_count, Point* points, Cluster* means) {
   double d, smallest;
-  int i = 0, j = 0, cluster_idx = 0, dx, dy;
+  int i = 0, j = 0, cluster_idx = 0;
+  float dx, dy;
   bool changed = false;
 
   // Initialize clusters
@@ -56,7 +58,7 @@ bool k_means_it(int point_count, int mean_count, Point* points, Cluster* means) 
       dx = means[i].cum_x / means[i].cardinality;
       dy = means[i].cum_y / means[i].cardinality;
 
-      if (means[i].x != dx || means[i].y != dy) {
+      if (abs(means[i].x - dx) > EPSILON || abs(means[i].y - dy) > EPSILON) {
         changed = true;
       }
 

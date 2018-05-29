@@ -1,14 +1,14 @@
 typedef struct point {
-  int x;
-  int y;
+  float x;
+  float y;
 } Point;
 
 typedef struct cluster {
-  int x;
-  int y;
+  float x;
+  float y;
   int cardinality;
-  long cum_x;
-  long cum_y;
+  double cum_x;
+  double cum_y;
 } Cluster;
 
 void print_point(Point* point);
