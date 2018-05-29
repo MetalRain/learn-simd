@@ -4,7 +4,7 @@
 int main() {
   int i;
   int cluster_count = 4;
-  int point_count = 10000000;
+  int point_count = 1000000;
 
   Cluster* clusters = malloc(cluster_count * sizeof(Cluster));
   Point* points = malloc(point_count * sizeof(Point));
@@ -21,6 +21,9 @@ int main() {
   for (int i=0; i < cluster_count; i++) {
     print_cluster(&clusters[i]);
   }
+
+  free(clusters);
+  free(points);
 
   return 0;
 }

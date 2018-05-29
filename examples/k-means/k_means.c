@@ -2,7 +2,10 @@
 #include <string.h>
 #include <math.h>
 #include <float.h>
+#include <stdbool.h>
 #include "k_means.h"
+
+#define MAX_ITERATIONS 100
 
 void print_point(Point* point) {
   Point p = *point;
@@ -15,9 +18,10 @@ void print_cluster(Cluster* cluster) {
 }
 
 // Runs single iteration of k-means
-void k_means_it(int point_count, int mean_count, Point* points, Cluster* means) {
+bool k_means_it(int point_count, int mean_count, Point* points, Cluster* means) {
   double d, smallest;
   int i = 0, j = 0, cluster_idx = 0, dx, dy;
+  bool changed = false;
 
   // Initialize clusters
   for (i=0; i < mean_count; i++) {
@@ -49,18 +53,32 @@ void k_means_it(int point_count, int mean_count, Point* points, Cluster* means) 
   // Recalculate cluster positions
   for (i=0; i < mean_count; i++) {
     if (means[i].cardinality > 0){
-      means[i].x = means[i].cum_x / means[i].cardinality;
-      means[i].y = means[i].cum_y / means[i].cardinality;
+      dx = means[i].cum_x / means[i].cardinality;
+      dy = means[i].cum_y / means[i].cardinality;
+
+      if (means[i].x != dx || means[i].y != dy) {
+        changed = true;
+      }
+
+      means[i].x = dx;
+      means[i].y = dy;
     }
   }
+
+  return changed;
 }
 
 void k_means(int point_count, int mean_count, Point* points, Cluster* means) {
   printf("Clustering %d points to %d clusters\n", point_count, mean_count);
 
-  // Loop until change is small
-  k_means_it(point_count, mean_count, points, means);
-  k_means_it(point_count, mean_count, points, means);
-  k_means_it(point_count, mean_count, points, means);
-  k_means_it(point_count, mean_count, points, means);
+  short iterations = 0;
+
+  // Loop until no change or max iterations has been reached
+  while(true){
+    iterations++;
+    bool changed = k_means_it(point_count, mean_count, points, means);
+    if (!changed || iterations >= MAX_ITERATIONS){
+      break;
+    }
+  }
 }
