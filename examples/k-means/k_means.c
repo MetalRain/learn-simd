@@ -94,59 +94,73 @@ void k_means_linear(int point_count, int cluster_count, Point* points, Cluster* 
 
 int k_means_simd(int point_count, int cluster_count, Point* points, Cluster* clusters) {
   int i = 0;
-  const int points_per_loop = 4;
+  const int points_per_loop = 8;
   const int processed_count = point_count - point_count % points_per_loop;
 
   // Find cluster for group of points
   while (i < processed_count) {
 
     // Load group of point coordinates as vectors
-    __m128 xs = _mm_setr_ps(points[i].x, points[1+i].x, points[2+i].x, points[3+i].x);
-    __m128 ys = _mm_setr_ps(points[i].y, points[1+i].y, points[2+i].y, points[3+i].y);
+    __m256 xs = _mm256_setr_ps(
+      points[0+i].x, points[1+i].x, points[2+i].x, points[3+i].x,
+      points[4+i].x, points[5+i].x, points[6+i].x, points[7+i].x
+    );
+    __m256 ys = _mm256_setr_ps(
+      points[0+i].y, points[1+i].y, points[2+i].y, points[3+i].y,
+      points[4+i].y, points[5+i].y, points[6+i].y, points[7+i].y
+    );
 
-    __m128 smallests = _mm_set1_ps(FLT_MAX);
-    __m128i labels = _mm_set1_epi32(0);
+    __m256 smallests = _mm256_set1_ps(FLT_MAX);
+    __m256i labels = _mm256_set1_epi32(0);
     int* label_ptr = (int*)&labels;
 
     for (int j=0; j < cluster_count; j++) {
 
       // Load cluster coordinates as vector
-      __m128 cxs = _mm_set1_ps(clusters[j].x);
-      __m128 cys = _mm_set1_ps(clusters[j].y);
+      __m256 cxs = _mm256_set1_ps(clusters[j].x);
+      __m256 cys = _mm256_set1_ps(clusters[j].y);
 
       // subtract
       // dx = x - cx
       // dy = y - cy
-      __m128 dxs = _mm_sub_ps(xs, cxs);
-      __m128 dys = _mm_sub_ps(ys, cys);
+      __m256 dxs = _mm256_sub_ps(xs, cxs);
+      __m256 dys = _mm256_sub_ps(ys, cys);
 
       // multiply
       // dx = dx * dx
       // dy = dy * dy
-      dxs = _mm_mul_ps(dxs, dxs);
-      dys = _mm_mul_ps(dys, dys);
+      dxs = _mm256_mul_ps(dxs, dxs);
+      dys = _mm256_mul_ps(dys, dys);
 
       // Distance to cluster (float)
       // [0.2, 0.1, 0.5, 0.6]
-      __m128 distances = _mm_add_ps(dxs, dys);
+      __m256 distances = _mm256_add_ps(dxs, dys);
 
       // Is new distance smaller than previous
-      // [ -1, 0, -1, 0 ]
-      __m128 results = _mm_cmplt_ps(distances, smallests);
+      // [ -1, 0, -1, 0, 0, 0, -1 ,0 ]
+      __m256 results = _mm256_cmp_ps(distances, smallests, _CMP_LT_OS);
 
       // If result is -1m use current cluster & set record smallest distance
       // Otherwise keep old value
-      labels = _mm_setr_epi32(
+      labels = _mm256_setr_epi32(
         ((int)results[0]) == INT_MIN ? j : label_ptr[0],
         ((int)results[1]) == INT_MIN ? j : label_ptr[1],
         ((int)results[2]) == INT_MIN ? j : label_ptr[2],
-        ((int)results[3]) == INT_MIN ? j : label_ptr[3]
+        ((int)results[3]) == INT_MIN ? j : label_ptr[3],
+        ((int)results[4]) == INT_MIN ? j : label_ptr[4],
+        ((int)results[5]) == INT_MIN ? j : label_ptr[5],
+        ((int)results[6]) == INT_MIN ? j : label_ptr[6],
+        ((int)results[7]) == INT_MIN ? j : label_ptr[7]
       );
-      smallests = _mm_setr_ps(
+      smallests = _mm256_setr_ps(
         ((int)results[0]) == INT_MIN ? distances[0] : smallests[0],
         ((int)results[1]) == INT_MIN ? distances[1] : smallests[1],
         ((int)results[2]) == INT_MIN ? distances[2] : smallests[2],
-        ((int)results[3]) == INT_MIN ? distances[3] : smallests[3]
+        ((int)results[3]) == INT_MIN ? distances[3] : smallests[3],
+        ((int)results[4]) == INT_MIN ? distances[4] : smallests[4],
+        ((int)results[5]) == INT_MIN ? distances[5] : smallests[5],
+        ((int)results[6]) == INT_MIN ? distances[6] : smallests[6],
+        ((int)results[7]) == INT_MIN ? distances[7] : smallests[7]
       );
     }
 

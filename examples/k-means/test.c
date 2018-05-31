@@ -23,7 +23,7 @@ bool implementations_return_same(int point_count, int cluster_count, Point* poin
   // Re-initialize clusters
   memcpy(runtime_values, clusters, clusters_size);
 
-  // Run with linear
+  // Run with vector instructions
   k_means(point_count, cluster_count, points, runtime_values, k_means_simd_impl);
   memcpy(result_simd, runtime_values, clusters_size);
  
