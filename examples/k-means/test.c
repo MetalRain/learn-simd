@@ -88,7 +88,12 @@ bool implementations_return_same_dynamic() {
 
   gen_points(point_count, cluster_count, points, clusters);
 
-  return implementations_return_same(point_count, cluster_count, points, clusters);
+  bool passed = implementations_return_same(point_count, cluster_count, points, clusters);
+
+  free(clusters);
+  free(points);
+
+  return passed;
 }
 
 int main() {
