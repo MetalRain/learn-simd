@@ -97,6 +97,16 @@ int k_means_simd(int point_count, int cluster_count, Point* points, Cluster* clu
   const int points_per_loop = 8;
   const int processed_count = point_count - point_count % points_per_loop;
 
+  // Cluster centers don't change during iteration
+  // load vectors at start
+  __m256 cluster_x[cluster_count];
+  __m256 cluster_y[cluster_count];
+
+  for(int j=0; j < cluster_count; j++){
+    cluster_x[j] = _mm256_set1_ps(clusters[j].x);
+    cluster_y[j] = _mm256_set1_ps(clusters[j].y);
+  }
+
   // Find cluster for group of points
   while (i < processed_count) {
 
@@ -115,26 +125,21 @@ int k_means_simd(int point_count, int cluster_count, Point* points, Cluster* clu
     int* label_ptr = (int*)&labels;
 
     for (int j=0; j < cluster_count; j++) {
-
-      // Load cluster coordinates as vector
-      __m256 cxs = _mm256_set1_ps(clusters[j].x);
-      __m256 cys = _mm256_set1_ps(clusters[j].y);
-
-      // subtract
+      // subtract cluster center from point
       // dx = x - cx
+      __m256 dxs = _mm256_sub_ps(xs, cluster_x[j]);
       // dy = y - cy
-      __m256 dxs = _mm256_sub_ps(xs, cxs);
-      __m256 dys = _mm256_sub_ps(ys, cys);
+      __m256 dys = _mm256_sub_ps(ys, cluster_y[j]);
 
       // multiply
       // dx = dx * dx
-      // dy = dy * dy
       dxs = _mm256_mul_ps(dxs, dxs);
-      dys = _mm256_mul_ps(dys, dys);
 
+      // multiply & add
+      // distance = dy * dy + dx 
       // Distance to cluster (float)
       // [0.2, 0.1, 0.5, 0.6]
-      __m256 distances = _mm256_add_ps(dxs, dys);
+      __m256 distances =_mm256_fmadd_ps(dys, dys, dxs);
 
       // Is new distance smaller than previous
       // [ -1, 0, -1, 0, 0, 0, -1 ,0 ]
