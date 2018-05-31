@@ -137,35 +137,24 @@ int k_means_simd(int point_count, int cluster_count, Point* points, Cluster* clu
 
       // multiply & add
       // distance = dy * dy + dx 
-      // Distance to cluster (float)
+      // Squared distance to cluster (float)
       // [0.2, 0.1, 0.5, 0.6]
       __m256 distances =_mm256_fmadd_ps(dys, dys, dxs);
 
-      // Is new distance smaller than previous
-      // [ -1, 0, -1, 0, 0, 0, -1 ,0 ]
-      __m256 results = _mm256_cmp_ps(distances, smallests, _CMP_LT_OS);
+      // resolve smallest values
+      smallests = _mm256_min_ps(distances, smallests);
 
-      // If result is -1m use current cluster & set record smallest distance
-      // Otherwise keep old value
+      // If smallest value is same as distance
+      // assign current cluster as label
       labels = _mm256_setr_epi32(
-        ((int)results[0]) == INT_MIN ? j : label_ptr[0],
-        ((int)results[1]) == INT_MIN ? j : label_ptr[1],
-        ((int)results[2]) == INT_MIN ? j : label_ptr[2],
-        ((int)results[3]) == INT_MIN ? j : label_ptr[3],
-        ((int)results[4]) == INT_MIN ? j : label_ptr[4],
-        ((int)results[5]) == INT_MIN ? j : label_ptr[5],
-        ((int)results[6]) == INT_MIN ? j : label_ptr[6],
-        ((int)results[7]) == INT_MIN ? j : label_ptr[7]
-      );
-      smallests = _mm256_setr_ps(
-        ((int)results[0]) == INT_MIN ? distances[0] : smallests[0],
-        ((int)results[1]) == INT_MIN ? distances[1] : smallests[1],
-        ((int)results[2]) == INT_MIN ? distances[2] : smallests[2],
-        ((int)results[3]) == INT_MIN ? distances[3] : smallests[3],
-        ((int)results[4]) == INT_MIN ? distances[4] : smallests[4],
-        ((int)results[5]) == INT_MIN ? distances[5] : smallests[5],
-        ((int)results[6]) == INT_MIN ? distances[6] : smallests[6],
-        ((int)results[7]) == INT_MIN ? distances[7] : smallests[7]
+        (smallests[0] == distances[0]) ? j : label_ptr[0],
+        (smallests[1] == distances[1]) ? j : label_ptr[1],
+        (smallests[2] == distances[2]) ? j : label_ptr[2],
+        (smallests[3] == distances[3]) ? j : label_ptr[3],
+        (smallests[4] == distances[4]) ? j : label_ptr[4],
+        (smallests[5] == distances[5]) ? j : label_ptr[5],
+        (smallests[6] == distances[6]) ? j : label_ptr[6],
+        (smallests[7] == distances[7]) ? j : label_ptr[7]
       );
     }
 
