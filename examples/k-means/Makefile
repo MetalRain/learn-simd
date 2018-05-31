@@ -7,3 +7,6 @@ DEPS = dataset.h k_means.h
 
 k_means: main.o dataset.o k_means.o
 	$(CC) -o k-means main.o dataset.o k_means.o $(CFLAGS)
+
+test: test.o dataset.o k_means.o
+	$(CC) -o k-means-tests test.o dataset.o k_means.o $(CFLAGS)

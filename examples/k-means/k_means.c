@@ -8,6 +8,8 @@
 #define MAX_ITERATIONS 100
 #define EPSILON 1e-3
 
+// Debug printing
+
 void print_point(Point* point) {
   Point p = *point;
   printf("Point: (%g,%g)\n", p.x, p.y);
@@ -18,68 +20,9 @@ void print_cluster(Cluster* cluster) {
   printf("Cluster: (%g,%g) size: %d\n", c.x, c.y, c.cardinality);
 }
 
-// Runs single iteration of k-means
-bool k_means_it(int point_count, int mean_count, Point* points, Cluster* means) {
-  double d, smallest;
-  int i = 0, j = 0, cluster_idx = 0;
-  float dx, dy;
-  bool changed = false;
-
-  // Initialize clusters
-  for (i=0; i < mean_count; i++) {
-    means[i].cardinality = 0;
-    means[i].cum_x = 0;
-    means[i].cum_y = 0;
-  }
-
-  // Find cluster for each point
-  for (i=0; i < point_count; i++) {
-    cluster_idx = 0;
-    smallest = FLT_MAX;
-    for (j=0; j < mean_count; j++) {
-      dx = points[i].x - means[j].x;
-      dy = points[i].y - means[j].y;
-      d = dx * dx + dy * dy;
-
-      if (d < smallest) {
-        smallest = d;
-        cluster_idx = j;
-      }
-    }
-    // Add point to cluster
-    means[cluster_idx].cardinality += 1;
-    means[cluster_idx].cum_x += points[i].x;
-    means[cluster_idx].cum_y += points[i].y;
-  }
-
-  // Recalculate cluster positions
-  for (i=0; i < mean_count; i++) {
-    if (means[i].cardinality > 0){
-      dx = means[i].cum_x / means[i].cardinality;
-      dy = means[i].cum_y / means[i].cardinality;
-
-      if (abs(means[i].x - dx) > EPSILON || abs(means[i].y - dy) > EPSILON) {
-        changed = true;
-      }
-
-      means[i].x = dx;
-      means[i].y = dy;
-    }
-  }
-
-  return changed;
-}
 
 void print_mm128 (const char * str, __m128 v) {
   printf("%s: [ %g | %g | %g | %g ]\n", str, v[0], v[1], v[2], v[3]);
-}
-
-int fst(long long int i) {
-  return (int) i;
-}
-
-int snd(long long int i) {
-  return (int) (i >> 32);
 }
 
 
@@ -88,23 +31,74 @@ void print_mm128i (const char * str, __m128i v) {
   printf("%s: [ %d | %d | %d | %d ]\n", str, ptr[0], ptr[1], ptr[2], ptr[3]);
 }
 
-// Runs single iteration of k-means
-bool k_means_simd_it(int point_count, int mean_count, Point* points, Cluster* means) {
-  int i = 0, j = 0;
+// Preparation for each iteration
+void init_clusters(int cluster_count, Cluster* clusters) {
+  for (int i=0; i < cluster_count; i++) {
+    clusters[i].cardinality = 0;
+    clusters[i].cum_x = 0;
+    clusters[i].cum_y = 0;
+  }
+}
+
+// Accumulate cluster positions
+bool adjust_clusters(int cluster_count, Cluster* clusters) {
   float dx, dy;
   bool changed = false;
 
-  const int points_per_loop = 4;
+  for (int i=0; i < cluster_count; i++) {
+    if (clusters[i].cardinality > 0){
+      dx = clusters[i].cum_x / clusters[i].cardinality;
+      dy = clusters[i].cum_y / clusters[i].cardinality;
 
-  // Initialize clusters
-  for (i=0; i < mean_count; i++) {
-    means[i].cardinality = 0;
-    means[i].cum_x = 0;
-    means[i].cum_y = 0;
+      if (abs(clusters[i].x - dx) > EPSILON || abs(clusters[i].y - dy) > EPSILON) {
+        changed = true;
+      }
+
+      clusters[i].x = dx;
+      clusters[i].y = dy;
+    }
   }
 
+  return changed;
+}
+
+void assign_point(Point* point, Cluster* cluster) {
+  cluster->cardinality += 1;
+  cluster->cum_x += point->x;
+  cluster->cum_y += point->y;
+}
+
+// Naive loop implementation
+void k_means_linear(int point_count, int cluster_count, Point* points, Cluster* clusters) {
+  double d, smallest;
+  int cluster_idx = 0;
+
+  // Find cluster for each point
+  for (int i=0; i < point_count; i++) {
+    cluster_idx = 0;
+    smallest = FLT_MAX;
+    for (int j=0; j < cluster_count; j++) {
+      float dx = points[i].x - clusters[j].x;
+      float dy = points[i].y - clusters[j].y;
+      d = dx * dx + dy * dy;
+
+      if (d < smallest) {
+        smallest = d;
+        cluster_idx = j;
+      }
+    }
+    // Add point to cluster
+    assign_point(&(points[i]), &clusters[cluster_idx]);
+  }
+}
+
+int k_means_simd(int point_count, int cluster_count, Point* points, Cluster* clusters) {
+  int i = 0;
+  const int points_per_loop = 4;
+  const int processed_count = point_count - point_count % points_per_loop;
+
   // Find cluster for group of points
-  for (i=0; i < point_count; i += points_per_loop) {
+  while (i < processed_count) {
 
     // Load group of point coordinates as vectors
     __m128 xs = _mm_setr_ps(points[i].x, points[1+i].x, points[2+i].x, points[3+i].x);
@@ -114,11 +108,11 @@ bool k_means_simd_it(int point_count, int mean_count, Point* points, Cluster* me
     __m128i labels = _mm_set1_epi32(0);
     int* label_ptr = (int*)&labels;
 
-    for (j=0; j < mean_count; j++) {
+    for (int j=0; j < cluster_count; j++) {
 
       // Load cluster coordinates as vector
-      __m128 cxs = _mm_set1_ps(means[j].x);
-      __m128 cys = _mm_set1_ps(means[j].y);
+      __m128 cxs = _mm_set1_ps(clusters[j].x);
+      __m128 cys = _mm_set1_ps(clusters[j].y);
 
       // subtract
       // dx = x - cx
@@ -157,55 +151,62 @@ bool k_means_simd_it(int point_count, int mean_count, Point* points, Cluster* me
     }
 
     // Add point to cluster
-    for(j=0; j < points_per_loop; j++) {
-      means[label_ptr[j]].cardinality += 1;
-      means[label_ptr[j]].cum_x += points[i].x;
-      means[label_ptr[j]].cum_y += points[i].y;
+    for(int j=0; j < points_per_loop; j++) {
+      assign_point(&(points[i + j]), &clusters[label_ptr[j]]);
     }
-  }
-  //TODO: handle remaining points
 
-  // Recalculate cluster positions
-  for (i=0; i < mean_count; i++) {
-    if (means[i].cardinality > 0){
-      dx = means[i].cum_x / means[i].cardinality;
-      dy = means[i].cum_y / means[i].cardinality;
-
-      if (abs(means[i].x - dx) > EPSILON || abs(means[i].y - dy) > EPSILON) {
-        changed = true;
-      }
-
-      means[i].x = dx;
-      means[i].y = dy;
-    }
+    i += points_per_loop;
   }
 
-  return changed;
+  return processed_count;
 }
 
 
-short k_means(int point_count, int mean_count, Point* points, Cluster* means) {
-  short iterations = 0;
+// Runs single iteration of k-means
+bool k_means_it(int point_count, int cluster_count, Point* points, Cluster* clusters) {
+  init_clusters(cluster_count, clusters);
 
-  // Loop until no change or max iterations has been reached
-  while(true){
-    iterations++;
-    bool changed = k_means_it(point_count, mean_count, points, means);
-    if (!changed || iterations >= MAX_ITERATIONS){
-      return iterations;
-    }
-  }
+  k_means_linear(point_count, cluster_count, points, clusters);
 
-  return iterations;
+  return adjust_clusters(cluster_count, clusters);
 }
 
-short k_means_simd(int point_count, int mean_count, Point* points, Cluster* means) {
+// Runs single iteration of k-means
+bool k_means_simd_it(int point_count, int cluster_count, Point* points, Cluster* clusters) {
+  init_clusters(cluster_count, clusters);
+
+  int processed_count = k_means_simd(point_count, cluster_count, points, clusters);
+ 
+  // Process rest of points with linear
+  if (processed_count < point_count) {
+
+    Point* rem_ptr = points;
+    rem_ptr += processed_count;
+    k_means_linear(point_count - processed_count, cluster_count, rem_ptr, clusters);
+  }
+
+  return adjust_clusters(cluster_count, clusters);
+}
+
+
+short k_means(int point_count, int cluster_count, Point* points, Cluster* clusters, KMeansImpl impl) {
   short iterations = 0;
 
-  // Loop until no change or max iterations has been reached
   while(true){
     iterations++;
-    bool changed = k_means_simd_it(point_count, mean_count, points, means);
+    bool changed;
+
+    switch(impl){
+      case k_means_simd_impl:
+        changed = k_means_simd_it(point_count, cluster_count, points, clusters);
+        break;
+      case k_means_linear_impl:
+      default:
+        changed = k_means_it(point_count, cluster_count, points, clusters);
+        break;
+    }
+
+    // Loop until no change or max iterations has been reached
     if (!changed || iterations >= MAX_ITERATIONS){
       return iterations;
     }

@@ -11,9 +11,13 @@ typedef struct cluster {
   double cum_y;
 } Cluster;
 
+typedef enum {
+  k_means_linear_impl,
+  k_means_simd_impl
+} KMeansImpl;
+
 void print_point(Point* point);
 
 void print_cluster(Cluster* cluster);
 
-short k_means(int point_count, int mean_count, Point* points, Cluster* means);
-short k_means_simd(int point_count, int mean_count, Point* points, Cluster* means);
+short k_means(int point_count, int mean_count, Point* points, Cluster* means, KMeansImpl impl);

@@ -12,13 +12,13 @@ int main() {
   srand(0);
 
   Cluster* clusters = malloc(cluster_count * sizeof(Cluster));
-  Cluster* dirty_clusters = malloc(cluster_count * sizeof(Cluster));
+  Cluster* initial_values = malloc(cluster_count * sizeof(Cluster));
   Point* points = malloc(point_count * sizeof(Point));
 
   gen_points(point_count, cluster_count, points, clusters);
 
   // k-means changes clusters, store initial values here
-  memcpy(dirty_clusters, clusters, cluster_count * sizeof(Cluster));
+  memcpy(initial_values, clusters, cluster_count * sizeof(Cluster));
 
   const int executions = 10;
   double results[executions];
@@ -29,10 +29,10 @@ int main() {
   for(int i=0; i < executions; i++) {
 
     // Re-initialize clusters
-    memcpy(clusters, dirty_clusters, cluster_count * sizeof(Cluster));
+    memcpy(clusters, initial_values, cluster_count * sizeof(Cluster));
 
     start = clock();
-    k_means_simd(point_count, cluster_count, points, clusters);
+    k_means(point_count, cluster_count, points, clusters, k_means_simd_impl);
     diff = clock() - start;
     seconds = (diff * 1000. / CLOCKS_PER_SEC) / 1000.;
     simd_results[i] = seconds;
@@ -41,10 +41,10 @@ int main() {
   for(int i=0; i < executions; i++) {
 
     // Re-initialize clusters
-    memcpy(clusters, dirty_clusters, cluster_count * sizeof(Cluster));
+    memcpy(clusters, initial_values, cluster_count * sizeof(Cluster));
 
     start = clock();
-    k_means(point_count, cluster_count, points, clusters);
+    k_means(point_count, cluster_count, points, clusters, k_means_linear_impl);
     diff = clock() - start;
     seconds = (diff * 1000. / CLOCKS_PER_SEC) / 1000.;
     results[i] = seconds;
@@ -54,7 +54,7 @@ int main() {
     printf("Time to cluster %d points, run %d | SIMD: %fs | NORMAL: %fs\n", point_count, i, simd_results[i], results[i]);
   }
 
-  free(dirty_clusters);
+  free(initial_values);
   free(clusters);
   free(points);
 
