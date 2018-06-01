@@ -97,6 +97,8 @@ int main() {
     );
   }
 
+  free(xs);
+  free(ys);
   free(initial_values);
   free(clusters);
   free(points);
