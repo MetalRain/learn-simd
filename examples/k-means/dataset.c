@@ -10,7 +10,7 @@ int from_range(int start, int end) {
   return start + (rand() % range);
 }
 
-void gen_points(int point_count, int cluster_count, Point* points, Cluster* clusters) {
+void gen_points(int point_count, int cluster_count, PointData* points, Cluster* clusters) {
   int points_remaining = point_count;
   int last_index = 0, index;
   int cx, cy;
@@ -36,10 +36,8 @@ void gen_points(int point_count, int cluster_count, Point* points, Cluster* clus
     // Generate points near cluster
     for(int j=0; j < share; j++){
       index = last_index + j;
-      points[index] = (Point){
-        from_range(cx - MAX_DELTA, cx + MAX_DELTA),
-        from_range(cy - MAX_DELTA, cy + MAX_DELTA)
-      };
+      points->xs[index] = from_range(cx - MAX_DELTA, cx + MAX_DELTA);
+      points->ys[index] = from_range(cy - MAX_DELTA, cy + MAX_DELTA);
     }
     last_index += share;
   }

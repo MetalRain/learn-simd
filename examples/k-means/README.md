@@ -2,12 +2,14 @@
 
 This example implements [K-means](https://en.wikipedia.org/wiki/K-means_clustering) algorithm with and without using vector instructions.
 
+
 ## Requirements
 
 - [GCC](https://gcc.gnu.org/)
 - x86 instruction set extensions:
   - [AVX2](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions#Advanced_Vector_Extensions_2)
   - [FMA3](https://en.wikipedia.org/wiki/FMA_instruction_set#FMA3_instruction_set)
+
 
 ## Test
 
@@ -35,6 +37,7 @@ Cluster: (456.125,361.25) size: 8
 Cluster: (866.333,633.333) size: 3
 ```
 
+
 ## Running
 
 ```
@@ -46,14 +49,14 @@ gcc -o k-means main.o dataset.o k_means.o -march=native
 
 $ ./k-means
 Running all implementations 10 times, please wait..
-Run 0 | LINEAR AOS: 0.784599s | LINEAR SOA: 0.778465s | SIMD AOS: 0.687410s | SIMD SOA: 0.651464s
-Run 1 | LINEAR AOS: 0.785229s | LINEAR SOA: 0.776055s | SIMD AOS: 0.688832s | SIMD SOA: 0.656960s
-Run 2 | LINEAR AOS: 0.781252s | LINEAR SOA: 0.781518s | SIMD AOS: 0.694275s | SIMD SOA: 0.651307s
-Run 3 | LINEAR AOS: 0.779119s | LINEAR SOA: 0.775116s | SIMD AOS: 0.695831s | SIMD SOA: 0.650199s
-Run 4 | LINEAR AOS: 0.778955s | LINEAR SOA: 0.782768s | SIMD AOS: 0.692051s | SIMD SOA: 0.653055s
-Run 5 | LINEAR AOS: 0.782575s | LINEAR SOA: 0.787393s | SIMD AOS: 0.694791s | SIMD SOA: 0.650325s
-Run 6 | LINEAR AOS: 0.778044s | LINEAR SOA: 0.780889s | SIMD AOS: 0.691301s | SIMD SOA: 0.648727s
-Run 7 | LINEAR AOS: 0.784683s | LINEAR SOA: 0.777229s | SIMD AOS: 0.686188s | SIMD SOA: 0.647249s
-Run 8 | LINEAR AOS: 0.786584s | LINEAR SOA: 0.777491s | SIMD AOS: 0.689030s | SIMD SOA: 0.649455s
-Run 9 | LINEAR AOS: 0.779005s | LINEAR SOA: 0.775659s | SIMD AOS: 0.686462s | SIMD SOA: 0.648623s
+Run 0 | LINEAR: 0.821147s | SIMD: 0.683453s
+Run 1 | LINEAR: 0.822704s | SIMD: 0.691980s
+Run 2 | LINEAR: 0.855390s | SIMD: 0.694981s
+Run 3 | LINEAR: 0.839654s | SIMD: 0.691994s
+Run 4 | LINEAR: 0.832535s | SIMD: 0.694071s
+Run 5 | LINEAR: 0.818484s | SIMD: 0.688475s
+Run 6 | LINEAR: 0.821095s | SIMD: 0.706415s
+Run 7 | LINEAR: 0.818277s | SIMD: 0.696803s
+Run 8 | LINEAR: 0.829243s | SIMD: 0.683764s
+Run 9 | LINEAR: 0.835043s | SIMD: 0.701297s
 ```
