@@ -45,16 +45,15 @@ gcc -c -o k_means.o k_means.c -march=native
 gcc -o k-means main.o dataset.o k_means.o -march=native
 
 $ ./k-means
-Running both implementations 10 times, please wait..
-Time to cluster 1000000 points, run 0 | SIMD: 0.677542s | NORMAL: 0.785118s
-Time to cluster 1000000 points, run 1 | SIMD: 0.678254s | NORMAL: 0.792409s
-Time to cluster 1000000 points, run 2 | SIMD: 0.672852s | NORMAL: 0.786130s
-Time to cluster 1000000 points, run 3 | SIMD: 0.671313s | NORMAL: 0.788299s
-Time to cluster 1000000 points, run 4 | SIMD: 0.680093s | NORMAL: 0.782715s
-Time to cluster 1000000 points, run 5 | SIMD: 0.676765s | NORMAL: 0.781520s
-Time to cluster 1000000 points, run 6 | SIMD: 0.680364s | NORMAL: 0.782323s
-Time to cluster 1000000 points, run 7 | SIMD: 0.678516s | NORMAL: 0.789870s
-Time to cluster 1000000 points, run 8 | SIMD: 0.674686s | NORMAL: 0.790801s
-Time to cluster 1000000 points, run 9 | SIMD: 0.673777s | NORMAL: 0.804875s
-
+Running all implementations 10 times, please wait..
+Run 0 | LINEAR AOS: 0.784599s | LINEAR SOA: 0.778465s | SIMD AOS: 0.687410s | SIMD SOA: 0.651464s
+Run 1 | LINEAR AOS: 0.785229s | LINEAR SOA: 0.776055s | SIMD AOS: 0.688832s | SIMD SOA: 0.656960s
+Run 2 | LINEAR AOS: 0.781252s | LINEAR SOA: 0.781518s | SIMD AOS: 0.694275s | SIMD SOA: 0.651307s
+Run 3 | LINEAR AOS: 0.779119s | LINEAR SOA: 0.775116s | SIMD AOS: 0.695831s | SIMD SOA: 0.650199s
+Run 4 | LINEAR AOS: 0.778955s | LINEAR SOA: 0.782768s | SIMD AOS: 0.692051s | SIMD SOA: 0.653055s
+Run 5 | LINEAR AOS: 0.782575s | LINEAR SOA: 0.787393s | SIMD AOS: 0.694791s | SIMD SOA: 0.650325s
+Run 6 | LINEAR AOS: 0.778044s | LINEAR SOA: 0.780889s | SIMD AOS: 0.691301s | SIMD SOA: 0.648727s
+Run 7 | LINEAR AOS: 0.784683s | LINEAR SOA: 0.777229s | SIMD AOS: 0.686188s | SIMD SOA: 0.647249s
+Run 8 | LINEAR AOS: 0.786584s | LINEAR SOA: 0.777491s | SIMD AOS: 0.689030s | SIMD SOA: 0.649455s
+Run 9 | LINEAR AOS: 0.779005s | LINEAR SOA: 0.775659s | SIMD AOS: 0.686462s | SIMD SOA: 0.648623s
 ```
