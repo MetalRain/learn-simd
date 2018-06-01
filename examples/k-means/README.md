@@ -1,13 +1,13 @@
 # K-means
 
-This example has implementations of K-means algorithm with and without SIMD instructions.
+This example implements [K-means](https://en.wikipedia.org/wiki/K-means_clustering) algorithm with and without using vector instructions.
 
 ## Requirements
 
-CPU:
-- x86-64
-- AVX2
-- FMA
+- [GCC](https://gcc.gnu.org/)
+- x86 instruction set extensions:
+  - [AVX2](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions#Advanced_Vector_Extensions_2)
+  - [FMA3](https://en.wikipedia.org/wiki/FMA_instruction_set#FMA3_instruction_set)
 
 ## Test
 
