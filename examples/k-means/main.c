@@ -5,9 +5,11 @@
 #include "dataset.h"
 
 int main() {
-  const int cluster_count = 4, 
-      point_count = 8 * 100000,
-      executions = 10;
+  const int cluster_count = 4,
+    thread_count = 4;
+
+  const int point_count = 32000 * 4,
+    executions = 10;
 
   clock_t start, diff;
   double seconds;
@@ -62,7 +64,7 @@ int main() {
     memcpy(clusters, initial_values, cluster_count * sizeof(Cluster));
 
     start = clock();
-    k_means_threaded(4, point_count, cluster_count, &points, clusters, k_means_linear_impl);
+    k_means_threaded(thread_count, point_count, cluster_count, &points, clusters, k_means_linear_impl);
     diff = clock() - start;
     seconds = (diff * 1000. / CLOCKS_PER_SEC) / 1000.;
     threaded_results[i] = seconds;
@@ -74,7 +76,7 @@ int main() {
     memcpy(clusters, initial_values, cluster_count * sizeof(Cluster));
 
     start = clock();
-    k_means_threaded(4, point_count, cluster_count, &points, clusters, k_means_simd_impl);
+    k_means_threaded(thread_count, point_count, cluster_count, &points, clusters, k_means_simd_impl);
     diff = clock() - start;
     seconds = (diff * 1000. / CLOCKS_PER_SEC) / 1000.;
     threaded_simd_results[i] = seconds;

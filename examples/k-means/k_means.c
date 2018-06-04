@@ -210,9 +210,8 @@ void k_means_threaded_run(int cluster_count, Cluster* clusters, void* fn (void *
 
   pthread_t thread[thread_count];
 
-  // Shuffle
+  // Map
   for(int i=0; i < thread_count; i++){
-    // Map
     void* thread_data_ptr = (void*)&thread_data[i];
     pthread_create(&(thread[i]), NULL, fn, thread_data_ptr);
   }
@@ -239,6 +238,7 @@ short k_means_threaded(int thread_count, int point_count, int cluster_count, Poi
   PointData* thread_points = malloc(thread_count * sizeof(PointData));
 
   // Assign points to threads
+  // and make copies of clusters
   int remaining_points = point_count;
   for(int i=0; i < thread_count; i++){
 
@@ -273,10 +273,9 @@ short k_means_threaded(int thread_count, int point_count, int cluster_count, Poi
 
     init_clusters(cluster_count, clusters);
 
-    // Shuffle
     for(int i=0; i < thread_count; i++){
-      // Copy clusters for each thread
       Cluster* thread_cluster_ptr = thread_clusters + (i * cluster_count);
+      // Init thread clusters
       memcpy(thread_cluster_ptr, clusters, clusters_size);
     }
 
