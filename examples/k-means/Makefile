@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-march=native
+CFLAGS=-march=native -pthread
 DEPS = dataset.h k_means.h
 
 %.o: %.c $(DEPS)

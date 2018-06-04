@@ -19,3 +19,5 @@ typedef enum {
 void print_cluster(Cluster* cluster);
 
 short k_means(int point_count, int mean_count, PointData* points, Cluster* means, KMeansImpl impl);
+
+short k_means_threaded(int thread_count, int point_count, int mean_count, PointData* points, Cluster* means, KMeansImpl impl);

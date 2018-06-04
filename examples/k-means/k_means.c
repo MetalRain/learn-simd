@@ -3,6 +3,8 @@
 #include <limits.h>
 #include <stdbool.h>
 #include <immintrin.h>
+#include <pthread.h>
+#include <string.h>
 #include "k_means.h"
 
 #define MAX_ITERATIONS 100
@@ -45,7 +47,7 @@ bool adjust_clusters(int cluster_count, Cluster* clusters) {
   return changed;
 }
 
-// Linear  implementation
+// Linear implementation
 void k_means_linear(int point_count, int cluster_count, PointData* points, Cluster* clusters) {
   double d, smallest;
   int cluster_idx = 0;
@@ -154,19 +156,8 @@ int k_means_simd(int point_count, int cluster_count, PointData* points, Cluster*
   return processed_count;
 }
 
-// Runs single iteration of k-means
-bool k_means_it(int point_count, int cluster_count, PointData* points, Cluster* clusters) {
-  init_clusters(cluster_count, clusters);
-
-  k_means_linear(point_count, cluster_count, points, clusters);
-
-  return adjust_clusters(cluster_count, clusters);
-}
-
-// Runs single iteration of k-means
-bool k_means_simd_it(int point_count, int cluster_count, PointData* points, Cluster* clusters) {
-  init_clusters(cluster_count, clusters);
-
+// Vectorized implementation, full iteration
+void k_means_simd_run(int point_count, int cluster_count, PointData* points, Cluster* clusters) {
   int processed_count = k_means_simd(point_count, cluster_count, points, clusters);
  
   // Process rest of points with linear
@@ -181,9 +172,142 @@ bool k_means_simd_it(int point_count, int cluster_count, PointData* points, Clus
 
     k_means_linear(point_count - processed_count, cluster_count, &remaining, clusters);
   }
-
-  return adjust_clusters(cluster_count, clusters);
 }
+
+typedef struct k_means_thread {
+  int point_count;
+  int cluster_count;
+  PointData* points;
+  Cluster* clusters;
+} KMeansThread;
+
+
+void* k_means_threaded_linear(void* ptr) {
+  KMeansThread* thread_data = (KMeansThread*)ptr;
+  k_means_linear(
+    thread_data->point_count,
+    thread_data->cluster_count,
+    thread_data->points,
+    thread_data->clusters
+  );
+  return NULL;
+}
+
+void* k_means_threaded_simd(void* ptr) {
+  KMeansThread* thread_data = (KMeansThread*)ptr;
+  k_means_simd_run(
+    thread_data->point_count,
+    thread_data->cluster_count,
+    thread_data->points,
+    thread_data->clusters
+  );
+  return NULL;
+}
+
+// Multithreaded linear implementation, full iteration
+void k_means_threaded_run(int cluster_count, Cluster* clusters, void* fn (void *), 
+  int thread_count, KMeansThread* thread_data, Cluster* thread_clusters, PointData* thread_points) {
+
+  pthread_t thread[thread_count];
+
+  // Shuffle
+  for(int i=0; i < thread_count; i++){
+    // Map
+    void* thread_data_ptr = (void*)&thread_data[i];
+    pthread_create(&(thread[i]), NULL, fn, thread_data_ptr);
+  }
+
+  // Reduce
+  for(int i=0; i < thread_count; i++){
+    pthread_join(thread[i], NULL);
+
+    for(int j=0; j < cluster_count; j++){
+      Cluster* thread_cluster_ptr = thread_clusters + i * cluster_count + j;
+      clusters[j].cum_x += thread_cluster_ptr->cum_x;
+      clusters[j].cum_y += thread_cluster_ptr->cum_y;
+      clusters[j].cardinality += thread_cluster_ptr->cardinality;
+    }
+  }
+}
+
+short k_means_threaded(int thread_count, int point_count, int cluster_count, PointData* points, Cluster* clusters, KMeansImpl impl) {
+  short iterations = 0;
+  int clusters_size = cluster_count * sizeof(Cluster);
+
+  KMeansThread* thread_data = malloc(thread_count * sizeof(KMeansThread));
+  Cluster* thread_clusters = malloc(thread_count * clusters_size);
+  PointData* thread_points = malloc(thread_count * sizeof(PointData));
+
+  // Assign points to threads
+  int remaining_points = point_count;
+  for(int i=0; i < thread_count; i++){
+
+    int share = remaining_points / (thread_count - i);
+    if (i == (thread_count - 1)) {
+      share = remaining_points;
+    }
+    int processed_count = point_count - remaining_points;
+    remaining_points -= share;
+
+    Cluster* thread_cluster_ptr = thread_clusters + (i * cluster_count);
+
+    float* thread_x = points->xs;
+    float* thread_y = points->ys;
+
+    thread_x += processed_count;
+    thread_y += processed_count;
+
+    thread_points[i] = (PointData){thread_x, thread_y};
+
+    thread_data[i] = (KMeansThread){
+      share,
+      cluster_count,
+      &thread_points[i],
+      thread_cluster_ptr
+    };
+  }
+
+  while(true){
+    iterations++;
+    bool changed;
+
+    init_clusters(cluster_count, clusters);
+
+    // Shuffle
+    for(int i=0; i < thread_count; i++){
+      // Copy clusters for each thread
+      Cluster* thread_cluster_ptr = thread_clusters + (i * cluster_count);
+      memcpy(thread_cluster_ptr, clusters, clusters_size);
+    }
+
+    switch(impl){
+      case k_means_simd_impl:
+        k_means_threaded_run(cluster_count, clusters, k_means_threaded_simd,
+          thread_count, thread_data, thread_clusters, thread_points);
+        break;
+      case k_means_linear_impl:
+      default:
+        k_means_threaded_run(cluster_count, clusters, k_means_threaded_linear,
+          thread_count, thread_data, thread_clusters, thread_points);
+        break;
+    }
+
+    changed = adjust_clusters(cluster_count, clusters);
+
+    // Loop until no change or max iterations has been reached
+    if (!changed || iterations >= MAX_ITERATIONS){
+      break;
+    }
+  }
+
+  // Clean up
+  free(thread_clusters);
+  free(thread_points);
+  free(thread_data);
+
+  return iterations;
+}
+
 
 short k_means(int point_count, int cluster_count, PointData* points, Cluster* clusters, KMeansImpl impl) {
   short iterations = 0;
@@ -192,15 +316,19 @@ short k_means(int point_count, int cluster_count, PointData* points, Cluster* cl
     iterations++;
     bool changed;
 
+    init_clusters(cluster_count, clusters);
+
     switch(impl){
       case k_means_simd_impl:
-        changed = k_means_simd_it(point_count, cluster_count, points, clusters);
+        k_means_simd_run(point_count, cluster_count, points, clusters);
         break;
       case k_means_linear_impl:
       default:
-        changed = k_means_it(point_count, cluster_count, points, clusters);
+        k_means_linear(point_count, cluster_count, points, clusters);
         break;
     }
+
+    changed = adjust_clusters(cluster_count, clusters);
 
     // Loop until no change or max iterations has been reached
     if (!changed || iterations >= MAX_ITERATIONS){

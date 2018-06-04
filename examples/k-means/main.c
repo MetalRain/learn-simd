@@ -6,13 +6,15 @@
 
 int main() {
   const int cluster_count = 4, 
-      point_count = 1000000,
+      point_count = 8 * 100000,
       executions = 10;
 
   clock_t start, diff;
   double seconds;
   double linear_results[executions];
   double simd_results[executions];
+  double threaded_results[executions];
+  double threaded_simd_results[executions];
 
   srand(0);
 
@@ -54,12 +56,36 @@ int main() {
     simd_results[i] = seconds;
   }
 
+   for(int i=0; i < executions; i++) {
+
+    // Re-initialize clusters
+    memcpy(clusters, initial_values, cluster_count * sizeof(Cluster));
+
+    start = clock();
+    k_means_threaded(4, point_count, cluster_count, &points, clusters, k_means_linear_impl);
+    diff = clock() - start;
+    seconds = (diff * 1000. / CLOCKS_PER_SEC) / 1000.;
+    threaded_results[i] = seconds;
+  }
+
+  for(int i=0; i < executions; i++) {
+
+    // Re-initialize clusters
+    memcpy(clusters, initial_values, cluster_count * sizeof(Cluster));
+
+    start = clock();
+    k_means_threaded(4, point_count, cluster_count, &points, clusters, k_means_simd_impl);
+    diff = clock() - start;
+    seconds = (diff * 1000. / CLOCKS_PER_SEC) / 1000.;
+    threaded_simd_results[i] = seconds;
+  }
+
 
   for(int i=0; i < executions; i++) {
     printf(
-      "Run %d | LINEAR: %fs | SIMD: %fs\n",
+      "Run %d | LINEAR: %fs | THREADS: %fs | SIMD: %fs | SIMD + THREADS: %fs\n",
       i, 
-      linear_results[i], simd_results[i]
+      linear_results[i], threaded_results[i], simd_results[i], threaded_simd_results[i]
     );
   }
 

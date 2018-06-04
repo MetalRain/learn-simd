@@ -5,6 +5,14 @@
 #include <stdbool.h>
 #include "dataset.h"
 
+bool fl_eq(float a, float b, float c, float d){
+  return a == b && b == c && c == d;
+}
+
+bool int_eq(int a, int b, int c, int d){
+  return a == b && b == c && c == d;
+}
+
 bool implementations_return_same(int point_count, int cluster_count, PointData* points, Cluster* clusters) {
   bool passed = true;
   const int clusters_size = cluster_count * sizeof(Cluster);
@@ -12,6 +20,8 @@ bool implementations_return_same(int point_count, int cluster_count, PointData* 
   Cluster* runtime_values = malloc(clusters_size);
   Cluster* result_simd = malloc(clusters_size);
   Cluster* result_linear = malloc(clusters_size);
+  Cluster* result_simd_threads = malloc(clusters_size);
+  Cluster* result_linear_threads = malloc(clusters_size);
 
   // Init clusters
   memcpy(runtime_values, clusters, clusters_size);
@@ -27,27 +37,48 @@ bool implementations_return_same(int point_count, int cluster_count, PointData* 
   k_means(point_count, cluster_count, points, runtime_values, k_means_simd_impl);
   memcpy(result_simd, runtime_values, clusters_size);
 
+  // Re-initialize clusters
+  memcpy(runtime_values, clusters, clusters_size);
+
+  // Run with linear threaaded
+  k_means_threaded(4, point_count, cluster_count, points, runtime_values, k_means_linear_impl);
+  memcpy(result_linear_threads, runtime_values, clusters_size);
+
+  // Re-initialize clusters
+  memcpy(runtime_values, clusters, clusters_size);
+
+  // Run with vector instructions, threaded
+  k_means_threaded(4, point_count, cluster_count, points, runtime_values, k_means_simd_impl);
+  memcpy(result_simd_threads, runtime_values, clusters_size);
+
+
   // Compare results
   for(int i=0; i < cluster_count; i++){
     Cluster c_simd = result_simd[i];
     Cluster c_lin = result_linear[i];
+    Cluster c_simd_t = result_simd_threads[i];
+    Cluster c_lin_t = result_linear_threads[i];
 
     bool matches = (
-      c_simd.x == c_lin.x &&
-      c_simd.y == c_lin.y &&
-      c_simd.cardinality == c_lin.cardinality
+      fl_eq(c_simd.x, c_lin.x, c_simd_t.x, c_lin_t.x) &&
+      fl_eq(c_simd.y, c_lin.y, c_simd_t.y, c_lin_t.y) &&
+      int_eq(c_simd.cardinality, c_lin.cardinality, c_simd_t.cardinality, c_lin_t.cardinality)
     );
 
     if (!matches){
       printf("Error: Results differ in cluster %d\n", i);
       print_cluster(&c_lin);
       print_cluster(&c_simd);
+      print_cluster(&c_lin_t);
+      print_cluster(&c_simd_t);
       passed = false;
     }
   }
 
   free(result_linear);
   free(result_simd);
+  free(result_linear_threads);
+  free(result_simd_threads);
   free(runtime_values);
 
   return passed;
