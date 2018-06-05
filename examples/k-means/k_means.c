@@ -210,9 +210,11 @@ void k_means_threaded_run(int cluster_count, Cluster* clusters, void* fn (void *
 
   pthread_t thread[thread_count];
 
-  // Map
+  
   for(int i=0; i < thread_count; i++){
     void* thread_data_ptr = (void*)&thread_data[i];
+
+    // Map
     pthread_create(&(thread[i]), NULL, fn, thread_data_ptr);
   }
 
@@ -242,20 +244,18 @@ short k_means_threaded(int thread_count, int point_count, int cluster_count, Poi
   int remaining_points = point_count;
   for(int i=0; i < thread_count; i++){
 
+    int processed_count = point_count - remaining_points;
+
     int share = remaining_points / (thread_count - i);
     if (i == (thread_count - 1)) {
       share = remaining_points;
     }
-    int processed_count = point_count - remaining_points;
     remaining_points -= share;
 
     Cluster* thread_cluster_ptr = thread_clusters + (i * cluster_count);
 
-    float* thread_x = points->xs;
-    float* thread_y = points->ys;
-
-    thread_x += processed_count;
-    thread_y += processed_count;
+    float* thread_x = points->xs + processed_count;
+    float* thread_y = points->ys + processed_count;
 
     thread_points[i] = (PointData){thread_x, thread_y};
 
@@ -331,7 +331,7 @@ short k_means(int point_count, int cluster_count, PointData* points, Cluster* cl
 
     // Loop until no change or max iterations has been reached
     if (!changed || iterations >= MAX_ITERATIONS){
-      return iterations;
+      break;
     }
   }
 

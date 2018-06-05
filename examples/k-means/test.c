@@ -67,10 +67,15 @@ bool implementations_return_same(int point_count, int cluster_count, PointData* 
 
     if (!matches){
       printf("Error: Results differ in cluster %d\n", i);
+      printf("Linear\n");
       print_cluster(&c_lin);
+      printf("Vectorized\n");
       print_cluster(&c_simd);
+      printf("Linear threaded\n");
       print_cluster(&c_lin_t);
+      printf("Vectorized threaded\n");
       print_cluster(&c_simd_t);
+      printf("\n");
       passed = false;
     }
   }
@@ -85,6 +90,8 @@ bool implementations_return_same(int point_count, int cluster_count, PointData* 
 }
 
 bool implementations_return_same_static() {
+  printf("Test with 9 static values in 3 clusters\n");
+
   Cluster clusters[] = {
     (Cluster){ 250., 250., 0, 0, 0},
     (Cluster){ 500., 500., 0, 0, 0},
@@ -102,10 +109,8 @@ bool implementations_return_same_static() {
   return implementations_return_same(point_count, cluster_count, &points, clusters);
 }
 
-bool implementations_return_same_dynamic() {
-
-  int cluster_count = 5, point_count = 1000000;
-
+bool implementations_return_same_dynamic(int cluster_count, int point_count) {
+  printf("Test with %d clusters and %d points\n", cluster_count, point_count);
   srand(0);
 
   Cluster* clusters = malloc(cluster_count * sizeof(Cluster));
@@ -127,7 +132,13 @@ bool implementations_return_same_dynamic() {
 
 int main() {
   if (!implementations_return_same_static()) return 1;
-  if (!implementations_return_same_dynamic()) return 1;
+  if (!implementations_return_same_dynamic(1, 30)) return 1;
+  if (!implementations_return_same_dynamic(2, 100)) return 1;
+  if (!implementations_return_same_dynamic(3, 1000)) return 1;
+  if (!implementations_return_same_dynamic(4, 10000)) return 1;
+  if (!implementations_return_same_dynamic(5, 100000)) return 1;
+  if (!implementations_return_same_dynamic(7, 500000)) return 1;
+  if (!implementations_return_same_dynamic(10, 1000000)) return 1;
 
   return 0;
 }

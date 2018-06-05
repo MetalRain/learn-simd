@@ -1,12 +1,14 @@
 #include <stdlib.h>
 #include "dataset.h"
 
-#define MAX_X 1000
-#define MAX_Y 1000
+#define MIN_X -1000
+#define MIN_Y -1000
+#define MAX_X  1000
+#define MAX_Y  1000
 #define MAX_DELTA 300
 
 int from_range(int start, int end) {
-  int range = end - start;
+  int range = abs(end - start);
   return start + (rand() % range);
 }
 
@@ -18,8 +20,8 @@ void gen_points(int point_count, int cluster_count, PointData* points, Cluster* 
 
   // Create clusters
   for (int i=0; i < cluster_count; i++) {
-    cx = from_range(0, MAX_X);
-    cy = from_range(0, MAX_Y);
+    cx = from_range(MIN_X, MAX_X);
+    cy = from_range(MIN_Y, MAX_Y);
     clusters[i] = (Cluster){cx, cy, 0, 0, 0};
 
     int clusters_remaining = cluster_count - i;

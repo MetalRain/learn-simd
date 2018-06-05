@@ -1,2 +1,4 @@
 k-means
 k-means-tests
+*.exe
+*.o

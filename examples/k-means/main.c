@@ -32,11 +32,20 @@ double avg(int count, double* results){
   return sum / count;
 }
 
-int main() {
-  const int cluster_count = 4, thread_count = 2;
-
-  const int point_count = 1000000,
+int main(int argc, char **argv) {
+  const int cluster_count = 4,
+    point_count = 1600000,
     executions = 10;
+
+  int thread_count = 4;
+
+  if (argc > 1) {
+    thread_count = atoi(argv[1]);
+    if (thread_count > 16 || thread_count < 1) {
+      printf("Use 1-16 threads, not %d\n", thread_count);
+      return 1;
+    }
+  }
 
   clock_t start, diff;
   double seconds;
@@ -59,7 +68,7 @@ int main() {
   // k-means changes clusters, store initial values here
   memcpy(initial_values, clusters, cluster_count * sizeof(Cluster));
 
-  printf("Running all implementations with %d points and %d clusters..\n", point_count, cluster_count);
+  printf("Running %d times using %d points, %d clusters and %d threads..\n", executions, point_count, cluster_count, thread_count);
 
   for(int i=0; i < executions; i++) {
 
