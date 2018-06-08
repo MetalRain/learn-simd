@@ -6,6 +6,7 @@ This repository contains links and resources for learning about using SIMD instr
 ## Examples
 
 - [K-means](examples/k-means/README.md)
+- [Raytracer](examples/raytracer/README.md)
 
 ## Resources
 

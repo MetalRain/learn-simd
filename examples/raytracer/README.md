@@ -1,0 +1,8 @@
+# Raytracer
+
+## Running
+
+```
+$ make
+$ ./raytracer
+```
