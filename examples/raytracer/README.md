@@ -4,5 +4,6 @@
 
 ```
 $ make
-$ ./raytracer
+$ ./raytracer > result.ppm
+$ xdg-open result.ppm
 ```
