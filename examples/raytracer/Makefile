@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-march=native -O3
+CFLAGS=-march=native -lm -O3
 DEPS=
 
 %.o: %.c $(DEPS)
