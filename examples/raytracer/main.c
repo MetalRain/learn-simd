@@ -30,36 +30,34 @@ typedef struct camera {
   float fov;
 } Camera;
 
-Vec3 vector_add(Vec3* v1, Vec3* v2){
-  return (Vec3){
-    v1->x + v2->x,
-    v1->y + v2->y,
-    v1->z + v2->z,
-  };
+void vector_copy(Vec3* dest, Vec3* src){
+  dest->x = src->x;
+  dest->y = src->y;
+  dest->z = src->z;
 }
 
-Vec3 vector_sub(Vec3* v1, Vec3* v2){
-  return (Vec3){
-    v1->x - v2->x,
-    v1->y - v2->y,
-    v1->z - v2->z,
-  };
+void vector_add(Vec3* dest, Vec3* v){
+  dest->x += v->x;
+  dest->y += v->y;
+  dest->z += v->z;
 }
 
-Vec3 vector_scale(Vec3* v1, float s){
-  return (Vec3){
-    v1->x * s,
-    v1->y * s,
-    v1->z * s,
-  };
+void vector_sub(Vec3* dest, Vec3* v){
+  dest->x -= v->x;
+  dest->y -= v->y;
+  dest->z -= v->z;
 }
 
-Vec3 vector_mult(Vec3* v1, Vec3* v2){
-  return (Vec3){
-    v1->x * v2->x,
-    v1->y * v2->y,
-    v1->z * v2->z,
-  };
+void vector_scale(Vec3* dest, float s){
+  dest->x *= s;
+  dest->y *= s;
+  dest->z *= s;
+}
+
+void vector_mult(Vec3* dest, Vec3* v){
+  dest->x *= v->x;
+  dest->y *= v->y;
+  dest->z *= v->z;
 }
 
 float vector_dot(Vec3* v1, Vec3* v2){
@@ -74,28 +72,32 @@ float vector_len(Vec3* v1){
   return sqrtf(vector_len2(v1));
 }
 
-Vec3 vector_normalize(Vec3* v) {
-  float len = vector_len2(v);
+void vector_normalize(Vec3* dest) {
+  float len = vector_len2(dest);
   if (len > 0) {
     float inv_len = 1. / sqrtf(len);
-    return vector_scale(v, inv_len);
+    vector_scale(dest, inv_len);
   }
-  return *v;
 }
 
-Vec3 vector_scale_add(Vec3* v, float a, Vec3* v2){
-  Vec3 temp = vector_scale(v, a);
-  return vector_add(&temp, v2);
+void vector_scale_add(Vec3* dest, Vec3* v_scale, float mul, Vec3* v_add){
+  vector_copy(dest, v_scale);
+  vector_scale(dest, mul);
+  vector_add(dest, v_add);
 }
 
 // Ray inside sphere must go out as well
 bool sphere_intersect(Vec3* from, Vec3* dir, Sphere* sphere, float* near, float* far){
-  Vec3 direct = vector_sub(&sphere->center, from);
+  Vec3 direct = {0,0,0};
+  vector_copy(&direct, &sphere->center);
+  vector_sub(&direct, from);
   float tca = vector_dot(&direct, dir);
   if (tca < 0) return false;
   float d2 = vector_dot(&direct, &direct) - tca * tca;
-  if (d2 > sphere->radius * sphere->radius) return false;
-  float thc = sqrtf(sphere->radius * sphere->radius - d2);
+  float r2 = sphere->radius * sphere->radius;
+  float dd = r2 - d2;
+  if (dd < 0.) return false;
+  float thc = sqrtf(dd);
   *near = tca - thc;
   *far = tca + thc;
   return true;
@@ -126,17 +128,24 @@ void trace(Color* result, Vec3 from, Vec3 dir, const int obj_count, Sphere* obje
     return;
   }
 
-  Color surface_color = {0.,0.,0.};
-  Vec3 hit_point = vector_scale_add(&dir, surface_dist, &from);
+  Color surface_color = {0., 0., 0.};
+  Vec3 hit_point = {0., 0., 0.};
+  Vec3 hit_normal = {0., 0., 0.};
 
-  Vec3 hit_normal = vector_sub(&hit_point, &sphere->center);
-  hit_normal = vector_normalize(&hit_normal);
+  // hit point at surface of sphere
+  vector_scale_add(&hit_point, &dir, surface_dist, &from);
+
+  // surface normal of hit point
+  vector_copy(&hit_normal, &hit_point);
+  vector_sub(&hit_normal, &sphere->center);
+  vector_normalize(&hit_normal);
+
 
   bool inside = false;
-  const float bias = 0.01;
+  const float bias = 0.001;
 
   if (vector_dot(&dir, &hit_normal) > 0){
-    hit_normal = vector_scale(&hit_normal, -1.);
+    vector_scale(&hit_normal, -1.);
     inside = true;
   }
 
@@ -149,14 +158,17 @@ void trace(Color* result, Vec3 from, Vec3 dir, const int obj_count, Sphere* obje
 
     // Reflection
     float mult = -2. * vector_dot(&dir, &hit_normal);
-    Vec3 refl_dir = vector_scale_add(&hit_normal, mult, &dir);
-    refl_dir = vector_normalize(&refl_dir);
+    Vec3 refl_dir = {0., 0., 0.};
+    vector_scale_add(&refl_dir, &hit_normal, mult, &dir);
+    vector_normalize(&refl_dir);
 
-    Vec3 refl_origin = vector_scale_add(&hit_normal, bias, &hit_point);
-    Color reflection_color = {0.,0.,0.};
+    Vec3 refl_origin = {0., 0., 0.};
+    vector_scale_add(&refl_origin, &hit_normal, bias, &hit_point);
+    Color reflection_color = {0., 0., 0.};
     trace(&reflection_color, refl_origin, refl_dir, obj_count, objects, rec_remaining - 1);
 
-    surface_color = vector_scale(&reflection_color, fresnel_effect);
+    vector_scale(&reflection_color, fresnel_effect);
+    vector_copy(&surface_color, &reflection_color);
 
     // Refraction
     if (sphere->transparency > 0.){
@@ -166,16 +178,20 @@ void trace(Color* result, Vec3 from, Vec3 dir, const int obj_count, Sphere* obje
       float cosi = -1. * vector_dot(&hit_normal, &dir);
       float k = 1. - eta * eta * (1. - cosi * cosi);
 
-      Vec3 refr_dir = vector_scale(&dir, eta);
-      refr_dir = vector_scale_add(&hit_normal, eta * cosi - sqrtf(k), &refr_dir);
-      refr_dir = vector_normalize(&refr_dir);
+      Vec3 refr_dir = {0., 0., 0.};
+      vector_scale(&dir, eta);
 
-      Vec3 refr_origin = vector_scale_add(&hit_normal, -bias, &hit_point);
-      Color refraction_color = {0.,0.,0.};
+      vector_scale_add(&refr_dir, &hit_normal, eta * cosi - sqrtf(k), &dir);
+      vector_normalize(&refr_dir);
+
+      Vec3 refr_origin = {0., 0., 0.};
+      vector_scale_add(&refr_origin, &hit_normal, bias * -1., &hit_point);
+      Color refraction_color = {0., 0., 0.};
       trace(&refraction_color, refr_origin, refr_dir, obj_count, objects, rec_remaining - 1);
 
-      refraction_color = vector_mult(&refraction_color, &(sphere->surface));
-      surface_color = vector_scale_add(&refraction_color, (1. - fresnel_effect) * sphere->transparency, &surface_color);
+      vector_mult(&refraction_color, &sphere->surface);
+      vector_scale(&refraction_color, (1. - fresnel_effect) * sphere->transparency);
+      vector_add(&surface_color, &refraction_color);
     }
 
   } else {
@@ -186,14 +202,17 @@ void trace(Color* result, Vec3 from, Vec3 dir, const int obj_count, Sphere* obje
       if (objects[i].emission.x > 0){
 
         float transmission = 2.;
-        Vec3 light_dir = vector_sub(&objects[i].center, &hit_point);
-        light_dir = vector_normalize(&light_dir);
+        Vec3 light_dir = {0., 0., 0.};
+        vector_copy(&light_dir, &objects[i].center);
+        vector_sub(&light_dir, &hit_point);
+        vector_normalize(&light_dir);
 
-        // check if light is obstructed
+        // check if light is obstructed by another sphere
         for(int j=0; j < obj_count; j++){
           if(i != j){
             float near, far;
-            Vec3 obstruct_origin = vector_scale_add(&hit_normal, bias, &hit_point);
+            Vec3 obstruct_origin = {0., 0., 0.};
+            vector_scale_add(&obstruct_origin, &hit_normal, bias, &hit_point);
             if (sphere_intersect(&obstruct_origin, &light_dir, &objects[j], &near, &far)){
               transmission = 0.;
               break;
@@ -203,19 +222,18 @@ void trace(Color* result, Vec3 from, Vec3 dir, const int obj_count, Sphere* obje
 
         float dir_mult = fmax(0., vector_dot(&hit_normal, &light_dir));
 
-        Color color_add = vector_scale(&sphere->surface, transmission * dir_mult);
-        color_add = vector_mult(&color_add, &(sphere[i].emission));
+        Color color_add = {0., 0., 0.};
+        vector_copy(&color_add, &sphere->surface);
+        vector_scale(&color_add, transmission * dir_mult);
+        vector_mult(&color_add, &(sphere[i].emission));
 
-        surface_color = vector_add(&surface_color, &color_add);
+        vector_add(&surface_color, &color_add);
       }
     }
   }
-
-  Color newResult = vector_add(&surface_color, &sphere->emission);
-  result->x = newResult.x;
-  result->y = newResult.y;
-  result->z = newResult.z;
-  return;
+  
+  vector_copy(result, &surface_color);
+  vector_add(result, &sphere->emission);
 };
 
 void render(int obj_count, Sphere* objects, Camera* camera) {
@@ -234,8 +252,8 @@ void render(int obj_count, Sphere* objects, Camera* camera) {
     for(int x=0; x < camera->width; x++){
       float dx = ( 2. * ((x + .5) * inv_w) - 1. ) * angle * aspect;
       float dy = (1. - 2. * ((y + .5) * inv_h)) * angle;
-      Vec3 dir = {dx, dy, -1};
-      dir = vector_normalize(&dir);
+      Vec3 dir = {dx, dy, -1.};
+      vector_normalize(&dir);
       result = (Color){0.,0.,0.};
       trace(&result, camera->position, dir, obj_count, objects, 5);
       // Clamp to 0-1 and multiply
@@ -258,15 +276,15 @@ int main(int argc, char **argv) {
       .0, 
       .0, 
       (Color){.2,.2,.2},
-      (Color){0.,0.,0.}
+      (Color){0., 0., 0.}
     },
     (Sphere){
       (Vec3){0.,0.,-20.},
       2.5,
       1.,
-      0.7,
-      (Color){1.,0.32,0.36},
-      (Color){0.,0.,0.}
+      0.8,
+      (Color){1., 0.32, 0.36},
+      (Color){0., 0., 0.}
     },
     (Sphere){
       (Vec3){5.,-1.,-15.},
@@ -274,7 +292,7 @@ int main(int argc, char **argv) {
       1.,
       0.0,
       (Color){.9,0.76,0.46},
-      (Color){0.,0.,0.}
+      (Color){0., 0., 0.}
     },
     (Sphere){
       (Vec3){5.,0.,-25.},
@@ -282,7 +300,7 @@ int main(int argc, char **argv) {
       1.,
       0.0,
       (Color){.65,0.77,0.97},
-      (Color){0.,0.,0.}
+      (Color){0., 0., 0.}
     },
     (Sphere){
       (Vec3){-5.5,0.,-15.},
@@ -290,7 +308,7 @@ int main(int argc, char **argv) {
       1.,
       0.0,
       (Color){.9,0.9,0.9},
-      (Color){0.,0.,0.}
+      (Color){0., 0., 0.}
     },
     // Light
     (Sphere){
@@ -298,7 +316,7 @@ int main(int argc, char **argv) {
       1.,
       0.,
       0.,
-      (Color){0.,0.,0.},
+      (Color){0., 0., 0.},
       (Color){3.,3.,3.}
     }
   };
