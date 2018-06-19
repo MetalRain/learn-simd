@@ -143,8 +143,7 @@ Color trace(Vec3* from, Vec3* dir, const int obj_count, Sphere* objects, int rec
 
         Sphere* light = &objects[i];
         Color transmission = _mm_set1_ps(1.);
-        Vec3 light_dir = _mm_loadu_ps((float*)&light->center);
-        light_dir = _mm_sub_ps(light_dir, hit_point);
+        Vec3 light_dir = _mm_sub_ps(light->center, hit_point);
 
         // check if light is obstructed by another sphere
         for(int j=0; j < obj_count; ++j){
@@ -158,9 +157,8 @@ Color trace(Vec3* from, Vec3* dir, const int obj_count, Sphere* objects, int rec
           }
         }
 
-        Vec3 color_add = _mm_loadu_ps((float*)&sphere->surface);
+        Vec3 color_add = _mm_mul_ps(sphere->surface, transmission);
         Vec3 color_add_int = _mm_set1_ps(fmaxf(0., vector_dot(&hit_normal, &light_dir)));
-        color_add = _mm_mul_ps(color_add, transmission);
         color_add = _mm_mul_ps(color_add, color_add_int);
         surface_color = _mm_fmadd_ps(color_add, light->emission, surface_color);
       }
@@ -267,8 +265,8 @@ int main(int argc, char **argv) {
 
   Camera camera = {
     _mm_set1_ps(0.),
-    640,
-    480,
+    1000,
+    1000,
     45.
   };
 

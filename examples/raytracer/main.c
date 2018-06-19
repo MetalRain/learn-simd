@@ -272,8 +272,8 @@ int main(int argc, char **argv) {
 
   Camera camera = {
     ZERO_VEC,
-    640,
-    480,
+    1000,
+    1000,
     45.
   };
 
