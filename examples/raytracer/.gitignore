@@ -1,4 +1,5 @@
 raytracer
+raytracer-simd
 *.exe
 *.o
 *.ppm
