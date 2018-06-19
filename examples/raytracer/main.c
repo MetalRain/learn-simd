@@ -1,18 +1,10 @@
 #include <stdio.h>
 #include <stdbool.h>
-#include <math.h>
 #include <float.h>
+#include "vec3.h"
 
 #define PI 3.141592653589793
 #define TOO_FAR 100000000.0
-#define ZERO_VEC (Vec3){0., 0., 0.}
-#define ONE_VEC (Vec3){1., 1., 1.}
-
-typedef struct vec3 {
-  float x;
-  float y;
-  float z;
-} Vec3;
 
 typedef Vec3 Color;
 
@@ -31,61 +23,6 @@ typedef struct camera {
   unsigned height;
   float fov;
 } Camera;
-
-void vector_copy(Vec3* dest, Vec3* src){
-  dest->x = src->x;
-  dest->y = src->y;
-  dest->z = src->z;
-}
-
-void vector_add(Vec3* dest, Vec3* v){
-  dest->x += v->x;
-  dest->y += v->y;
-  dest->z += v->z;
-}
-
-void vector_sub(Vec3* dest, Vec3* v){
-  dest->x -= v->x;
-  dest->y -= v->y;
-  dest->z -= v->z;
-}
-
-void vector_scale(Vec3* dest, float s){
-  dest->x *= s;
-  dest->y *= s;
-  dest->z *= s;
-}
-
-void vector_mult(Vec3* dest, Vec3* v){
-  dest->x *= v->x;
-  dest->y *= v->y;
-  dest->z *= v->z;
-}
-
-float vector_dot(Vec3* v1, Vec3* v2){
-  return v1->x * v2->x + v1->y * v2->y + v1->z * v2->z;
-}
-
-float vector_len2(Vec3* v){
-  return vector_dot(v, v);
-}
-
-float vector_len(Vec3* v){
-  return sqrtf(vector_len2(v));
-}
-
-void vector_normalize(Vec3* dest) {
-  float len = vector_len(dest);
-  if (len > 0.) {
-    vector_scale(dest, 1. / len);
-  }
-}
-
-void vector_scale_add(Vec3* dest, Vec3* v_scale, float mul, Vec3* v_add){
-  vector_copy(dest, v_scale);
-  vector_scale(dest, mul);
-  vector_add(dest, v_add);
-}
 
 // Ray inside sphere must go out as well
 bool sphere_intersect(Vec3* from, Vec3* dir, Sphere* sphere, float* near, float* far){
