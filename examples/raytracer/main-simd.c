@@ -26,8 +26,8 @@ typedef struct camera {
 // Ray inside sphere must go out as well
 bool sphere_intersect(Vec3* from, Vec3* dir, Sphere* sphere, float* near, float* far){
   Vec3 direct = _mm_set1_ps(0.);
-  vector_add(&direct, &sphere->center);
-  vector_sub(&direct, from);
+  direct = _mm_add_ps(direct, sphere->center);
+  direct = _mm_sub_ps(direct, *from);
   float tca = vector_dot(&direct, dir);
   if (tca < 0.) return false;
   float d2 = vector_dot(&direct, &direct) - tca * tca;
@@ -44,17 +44,18 @@ float mix_values(float a, float b, float mix){
   return b * mix + a * (1. - mix);
 }
 
-void trace(Color* result, Vec3* from, Vec3* dir, const int obj_count, Sphere* objects, int rec_remaining) {
+Color trace(Vec3* from, Vec3* dir, const int obj_count, Sphere* objects, int rec_remaining) {
+  Color result = _mm_set1_ps(0.);
   Sphere* sphere = NULL;
-  float surface_dist = TOO_FAR;
+  __m128 surface_dist = _mm_set1_ps(TOO_FAR);
 
   for(int i=0; i < obj_count; ++i){
     float near = TOO_FAR, far = TOO_FAR; 
     // Find nearest intersecting sphere
     if (sphere_intersect(from, dir, &objects[i], &near, &far)){
       if (near < 0) near = far;
-      if (near < surface_dist) {
-        surface_dist = near;
+      if (near < surface_dist[3]) {
+        surface_dist = _mm_set1_ps(near);
         sphere = &objects[i];
       }
     }
@@ -62,20 +63,18 @@ void trace(Color* result, Vec3* from, Vec3* dir, const int obj_count, Sphere* ob
 
   // No hits, return background color
   if (sphere == NULL) {
-    *result = _mm_set_ps(2.0, 2.0, 2.0, 0.0);
-    return;
+    return _mm_set_ps(2.0, 2.0, 2.0, 0.0);
   }
 
   Color surface_color = _mm_set1_ps(0.);
-  Vec3 hit_point = _mm_set1_ps(0.);
   Vec3 hit_normal = _mm_set1_ps(0.);
 
   // hit point at surface of sphere
-  vector_scale_add(&hit_point, dir, surface_dist, from);
+  Vec3 hit_point = _mm_fmadd_ps(*dir, surface_dist, *from);
 
   // surface normal of hit point
-  vector_add(&hit_normal, &hit_point);
-  vector_sub(&hit_normal, &sphere->center);
+  hit_normal = _mm_add_ps(hit_normal, hit_point);
+  hit_normal = _mm_sub_ps(hit_normal, sphere->center);
   vector_normalize(&hit_normal);
 
   bool inside = false;
@@ -83,10 +82,12 @@ void trace(Color* result, Vec3* from, Vec3* dir, const int obj_count, Sphere* ob
   bool has_transparency = sphere->transparency > 0.;
   bool is_diffuse = !has_reflection && !has_transparency;
 
-  const float bias = 0.01;
+  __m128 bias = _mm_set1_ps(0.01);
+  __m128 bias_inv = _mm_set1_ps(-0.01);
+  __m128 minus_one = _mm_set1_ps(-1.);
 
   if (vector_dot(dir, &hit_normal) > 0.){
-    vector_scale(&hit_normal, -1.);
+    hit_normal = _mm_mul_ps(hit_normal, minus_one);
     inside = true;
   }
 
@@ -97,18 +98,17 @@ void trace(Color* result, Vec3* from, Vec3* dir, const int obj_count, Sphere* ob
     float fresnel_effect = mix_values(fresnel_mix, 1., 0.1);
 
     // Reflection
-    Vec3 refl_dir = _mm_set1_ps(0.);
-    vector_scale_add(&refl_dir, &hit_normal, 2. * normal_dir_dot, dir);
+    Vec3 refl_ampl =  _mm_set1_ps(2. * normal_dir_dot);
+    Vec3 refl_dir = _mm_fmadd_ps(hit_normal, refl_ampl, *dir);
     vector_normalize(&refl_dir);
 
-    Vec3 refl_origin = _mm_set1_ps(0.);
-    vector_scale_add(&refl_origin, &hit_normal, bias, &hit_point);
-    Color reflection_color = _mm_set1_ps(0.);
-    trace(&reflection_color, &refl_origin, &refl_dir, obj_count, objects, rec_remaining - 1);
+    Vec3 refl_origin = _mm_fmadd_ps(hit_normal, bias, hit_point);
+    Color reflection_color = trace(&refl_origin, &refl_dir, obj_count, objects, rec_remaining - 1);
 
-    vector_scale(&reflection_color, fresnel_effect);
-    vector_scale(&reflection_color, sphere->reflection);
-    vector_add(&surface_color, &reflection_color);
+    Vec3 refl_color_ampl = _mm_set1_ps(fresnel_effect);
+    Vec3 refl_color_mat = _mm_set1_ps(sphere->reflection);
+    reflection_color = _mm_mul_ps(reflection_color, refl_color_ampl);
+    surface_color = _mm_fmadd_ps(reflection_color, refl_color_mat, surface_color);
 
     // Refraction
     if (has_transparency){
@@ -118,23 +118,19 @@ void trace(Color* result, Vec3* from, Vec3* dir, const int obj_count, Sphere* ob
       float cosi = normal_dir_dot;
       float k = 1. - eta * eta * (1. - cosi * cosi);
 
-      Vec3 refr_ray = _mm_set1_ps(0.);
-      vector_copy(&refr_ray, dir);
-      vector_scale(&refr_ray, eta);
+      Vec3 refr_ray_int = _mm_set1_ps(eta);
+      Vec3 refr_ray = _mm_mul_ps(*dir, refr_ray_int);
 
-      Vec3 refr_dir = _mm_set1_ps(0.);
-      vector_scale_add(&refr_dir, &hit_normal, eta * cosi - sqrtf(k), &refr_ray);
+      Vec3 refr_ampl = _mm_set1_ps(eta * cosi - sqrtf(k));
+      Vec3 refr_dir = _mm_fmadd_ps(hit_normal, refr_ampl, refr_ray);
       vector_normalize(&refr_dir);
 
-      Vec3 refr_origin = _mm_set1_ps(0.);
-      vector_scale_add(&refr_origin, &hit_normal, -bias, &hit_point);
+      Vec3 refr_origin = _mm_fmadd_ps(hit_normal, bias_inv, hit_point);
+      Color refraction_color = trace(&refr_origin, &refr_dir, obj_count, objects, rec_remaining - 1);
 
-      Color refraction_color = _mm_set1_ps(0.);
-      trace(&refraction_color, &refr_origin, &refr_dir, obj_count, objects, rec_remaining - 1);
-
-      vector_scale(&refraction_color, (1. - fresnel_effect) * sphere->transparency);
-      vector_mult(&refraction_color, &sphere->surface);
-      vector_add(&surface_color, &refraction_color);
+      Vec3 refrac_int = _mm_set1_ps((1. - fresnel_effect) * sphere->transparency);
+      refraction_color = _mm_mul_ps(refraction_color, refrac_int);
+      surface_color = _mm_fmadd_ps(refraction_color, sphere->surface, surface_color);
     }
 
 
@@ -147,16 +143,14 @@ void trace(Color* result, Vec3* from, Vec3* dir, const int obj_count, Sphere* ob
 
         Sphere* light = &objects[i];
         Color transmission = _mm_set1_ps(1.);
-        Vec3 light_dir;
-        vector_copy(&light_dir, &light->center);
-        vector_sub(&light_dir, &hit_point);
+        Vec3 light_dir = _mm_loadu_ps((float*)&light->center);
+        light_dir = _mm_sub_ps(light_dir, hit_point);
 
         // check if light is obstructed by another sphere
         for(int j=0; j < obj_count; ++j){
           if(i != j){
             float near, far;
-            Vec3 obstruct_origin = _mm_set1_ps(0.);
-            vector_scale_add(&obstruct_origin, &hit_normal, bias, &hit_point);
+            Vec3 obstruct_origin = _mm_fmadd_ps(hit_normal, bias, hit_point);
             if (sphere_intersect(&obstruct_origin, &light_dir, &objects[j], &near, &far)){
               transmission = _mm_set1_ps(0.);
               break;
@@ -164,18 +158,17 @@ void trace(Color* result, Vec3* from, Vec3* dir, const int obj_count, Sphere* ob
           }
         }
 
-        Vec3 color_add = _mm_set1_ps(0.);
-        vector_add(&color_add, &sphere->surface);
-        vector_mult(&color_add, &transmission);
-        vector_scale(&color_add, fmaxf(0., vector_dot(&hit_normal, &light_dir)));
-        vector_mult(&color_add, &light->emission);
-        vector_add(&surface_color, &color_add);
+        Vec3 color_add = _mm_loadu_ps((float*)&sphere->surface);
+        Vec3 color_add_int = _mm_set1_ps(fmaxf(0., vector_dot(&hit_normal, &light_dir)));
+        color_add = _mm_mul_ps(color_add, transmission);
+        color_add = _mm_mul_ps(color_add, color_add_int);
+        surface_color = _mm_fmadd_ps(color_add, light->emission, surface_color);
       }
     }
   }
 
-  vector_add(result, &surface_color);
-  vector_add(result, &sphere->emission);
+  result = _mm_add_ps(result, surface_color);
+  return _mm_add_ps(result, sphere->emission);
 };
 
 void render(int obj_count, Sphere* objects, Camera* camera) {
@@ -198,8 +191,7 @@ void render(int obj_count, Sphere* objects, Camera* camera) {
       float dy = (1. - 2. * ((y + .5) * inv_h)) * angle;
       Vec3 dir = _mm_set_ps(dx, dy, -1., 0.);
       vector_normalize(&dir);
-      Color result = _mm_set1_ps(0.);
-      trace(&result, &camera->position, &dir, obj_count, objects, 5);
+      Color result = trace(&camera->position, &dir, obj_count, objects, 5);
 
       // Clamp to 0-1 and multiply
       result = _mm_min_ps(result, one);
